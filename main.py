@@ -127,7 +127,7 @@ if len(sys.argv) > 9:
     rprint("[red bold]Too much arguments[/red bold]")
     help()
 
-w = open(wordlist,"r")
+w = open(wordlist,"rb")
 
 #parsing values from input
 nonce_start=0
@@ -161,10 +161,20 @@ while server_challenge[k] != "=":
     k-=1
 rounds=int(server_challenge[s_rounds_start:])
 
+progress_bar = tqdm(w)
 #start the attack
-for word in tqdm(w):
-    password = word.replace("\n","")
-    res = xmpp(username, password, client_nonce, initial_message, server_challenge, salt_b64, rounds)
-    if res == client_final_message:
-        rprint("[green bold] FOUND PASSWORD :[/green bold]",password)
-        sys.exit(1)
+for word in progress_bar:
+    try:
+        password = word.decode("utf-8")
+        password = password.replace("\n","")
+        res = xmpp(username, password, client_nonce, initial_message, server_challenge, salt_b64, rounds)
+        if res == client_final_message:
+            rprint("[green bold] FOUND PASSWORD :[/green bold]",password)
+            progress_bar.close()
+            break
+    except KeyboardInterrupt:
+        progress_bar.close()
+        sys.exit(0)
+    except:
+        rprint("[red bold]Could not decode[/red bold]",word)
+        rprint("[bold]Resuming attack...[/bold]")
