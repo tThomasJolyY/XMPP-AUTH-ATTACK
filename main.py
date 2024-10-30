@@ -56,6 +56,8 @@ def xmpp(username, password, client_nonce, intial_message, server_challenge, sal
 
     client_proof = string_xor(client_key, client_signature)
     #print("client proof =",client_proof)
+    if (len(client_proof)%2!=0):
+        client_proof = "0"+client_proof
 
     """
     salt_server_key = "Server Key"
