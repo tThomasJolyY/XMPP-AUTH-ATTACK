@@ -5,6 +5,7 @@ from pathlib import Path
 import art
 import sys
 from rich import print as rprint
+from tqdm import tqdm
 
 def salted_sha1_PBKDF2(password, salt, rounds):
     # Appliquer PBKDF2-SHA-1
@@ -161,7 +162,7 @@ while server_challenge[k] != "=":
 rounds=int(server_challenge[s_rounds_start:])
 
 #start the attack
-for word in w:
+for word in tqdm(w):
     password = word.replace("\n","")
     res = xmpp(username, password, client_nonce, initial_message, server_challenge, salt_b64, rounds)
     if res == client_final_message:
