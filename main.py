@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import base64
+from pathlib import Path
 
 def salted_sha1_PBKDF2(password, salt, rounds):
     # Appliquer PBKDF2-SHA-1
@@ -27,53 +28,94 @@ def string_xor(m1, m2):
     res =  int(m1,16) ^ int(m2,16)
     return '{:x}'.format(res)
 
-#r=6d442b5d9e51a740f369e3dcecf3178ec12b3985bbd4a8e6f814b422ab766573,s=QSXCR+Q6sek8bf92,i=4096
-"""
-server_nonce = "6d442b5d9e51a740f369e3dcecf3178ec12b3985bbd4a8e6f814b422ab766573"
-server_nonce_bytes = bytes.fromhex(server_nonce)
+def xmpp(username, password, client_nonce, intial_message, server_challenge, salt_b64, rounds):
+    r_value = ""
+    k = 0
+    while server_challenge[k] != ",":
+        r_value+=server_challenge[k]
+        k+=1;
+    client_final_message_bare = "c=biws,"+r_value
+    salted_password = salted_sha1_PBKDF2(password.encode("utf-8"),bytes.fromhex(salt),rounds)
+    #print("salted password =",salted_password)
 
-salt = "4125c247e43ab1e93c6dff76"
-salt_bytes = bytes.fromhex(salt)
-"""
+    salt_client_key = "Client Key"
+    client_key = hmac_sha1(bytes.fromhex(salted_password),salt_client_key.encode("utf-8"))
+    #print("clientKey =",client_key)
 
-username = "user"
-password = "pencil"
-client_nonce = "fyko+d2lbbFgONRv9qkxdawL"
+    stored_key = sha1(bytes.fromhex(client_key))
+    #print("sotredKey =",stored_key)
+
+    auth_message = "n="+username+",r="+client_nonce+","+server_challenge+","+client_final_message_bare
+    #print("auth message =",auth_message)
+
+    client_signature = hmac_sha1(bytes.fromhex(stored_key), auth_message.encode("utf-8"))
+    #print("client signature =",client_signature)
+
+    client_proof = string_xor(client_key, client_signature)
+    #print("client proof =",client_proof)
+
+    """
+    salt_server_key = "Server Key"
+    server_key = hmac_sha1(bytes.fromhex(salted_password), salt_server_key.encode("utf-8"))
+    #print("server key =",server_key)
+
+    server_signature = hmac_sha1(bytes.fromhex(server_key), auth_message.encode("utf-8"))
+    #print("server signature =",server_signature)
+    """
+
+    p_value = base64.b64encode(bytes.fromhex(client_proof)).decode("utf-8")
+    client_final_message = client_final_message_bare+",p="+p_value
+    #print("client final message =",client_final_message)
+
+    return client_final_message
+
+#User input
+#password = "pencil"
 initial_message = "n,,n=user,r=fyko+d2lbbFgONRv9qkxdawL"
-
-server_nonce = "3rfcNHYJY1ZVvWVs7j"
 server_challenge = "r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,s=QSXCR+Q6sek8bf92,i=4096"
-salt_b64 = "QSXCR+Q6sek8bf92"
-salt = base64.b64decode("QSXCR+Q6sek8bf92").hex()
-rounds=4096
+client_final_message = "c=biws,r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,p=v0X8v3Bz2T0CJGbJQyF0X+HI4Ts="
 
-client_final_message_bare = "c=biws,r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j"
-salted_password = salted_sha1_PBKDF2(password.encode("utf-8"),bytes.fromhex(salt),rounds)
-print("salted password =",salted_password)
+wordlist = "~/files/wordlist/small_wordlist.txt"
 
-salt_client_key = "Client Key"
-client_key = hmac_sha1(bytes.fromhex(salted_password),salt_client_key.encode("utf-8"))
-print("clientKey =",client_key)
+wordlist = wordlist.replace("~", str(Path.home()))
 
-stored_key = sha1(bytes.fromhex(client_key))
-print("sotredKey =",stored_key)
+w = open(wordlist,"r")
 
-auth_message = "n="+username+",r="+client_nonce+","+server_challenge+","+client_final_message_bare
-print("auth message =",auth_message)
+#parsing values from input
+nonce_start=0
+for i in range(len(initial_message)-1):
+    if initial_message[i] == "r" and initial_message[i+1] == "=":
+        nonce_start=i+2
+client_nonce = initial_message[nonce_start:]
+username_start=0
+username_end=0
+for i in range(len(initial_message)-1):
+    if initial_message[i] == "n" and initial_message[i+1] == "=":
+        username_start = i+2
+    if initial_message[i] == ",":
+        username_end = i
+username = initial_message[username_start:username_end]
 
-client_signature = hmac_sha1(bytes.fromhex(stored_key), auth_message.encode("utf-8"))
-print("client signature =",client_signature)
+salt_start=0
+salt_end=0
+for i in range(len(server_challenge)-1):
+    if server_challenge[i] == "s" and server_challenge[i+1] == "=":
+        salt_start = i+2
+    if server_challenge[i] == ",":
+        salt_end = i
+salt_b64 = server_challenge[salt_start:salt_end]
+salt = base64.b64decode(salt_b64).hex()
 
-client_proof = string_xor(client_key, client_signature)
-print("client proof =",client_proof)
+s_rounds_start=0
+k = len(server_challenge)-1
+while server_challenge[k] != "=":
+    s_rounds_start=k
+    k-=1
+rounds=int(server_challenge[s_rounds_start:])
 
-salt_server_key = "Server Key"
-server_key = hmac_sha1(bytes.fromhex(salted_password), salt_server_key.encode("utf-8"))
-print("server key =",server_key)
-
-server_signature = hmac_sha1(bytes.fromhex(server_key), auth_message.encode("utf-8"))
-print("server signature =",server_signature)
-
-p_value = base64.b64encode(bytes.fromhex(client_proof)).decode("utf-8")
-client_final_message = client_final_message_bare+",p="+p_value
-print("client final message =",client_final_message)
+#call to the xmpp function
+for word in w:
+    password = word.replace("\n","")
+    res = xmpp(username, password, client_nonce, initial_message, server_challenge, salt_b64, rounds)
+    if res == client_final_message:
+        print("Mot de passe trouvé:",password)
