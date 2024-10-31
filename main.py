@@ -32,7 +32,7 @@ def string_xor(m1, m2):
     res =  int(m1,16) ^ int(m2,16)
     return '{:x}'.format(res)
 
-def xmpp(username, password, client_nonce, intial_message, server_challenge, salt_b64, rounds):
+def xmpp(username, password, client_nonce, intial_message, server_challenge, salt, rounds):
     r_value = ""
     k = 0
     while server_challenge[k] != ",":
@@ -167,7 +167,7 @@ for word in progress_bar:
     try:
         password = word.decode("utf-8")
         password = password.replace("\n","")
-        res = xmpp(username, password, client_nonce, initial_message, server_challenge, salt_b64, rounds)
+        res = xmpp(username, password, client_nonce, initial_message, server_challenge, salt, rounds)
         if res == client_final_message:
             rprint("[green bold] FOUND PASSWORD :[/green bold]",password)
             progress_bar.close()
