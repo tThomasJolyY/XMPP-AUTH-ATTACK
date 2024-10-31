@@ -32,12 +32,7 @@ def string_xor(m1, m2):
     res =  int(m1,16) ^ int(m2,16)
     return '{:x}'.format(res)
 
-def xmpp(username, password, client_nonce, intial_message, server_challenge, salt, rounds):
-    r_value = ""
-    k = 0
-    while server_challenge[k] != ",":
-        r_value+=server_challenge[k]
-        k+=1;
+def xmpp(username, password, client_nonce, server_challenge, r_value,salt, rounds):
     client_final_message_bare = "c=biws,"+r_value
     salted_password = salted_sha1_PBKDF2(password.encode("utf-8"),bytes.fromhex(salt),rounds)
     #print("salted password =",salted_password)
@@ -161,13 +156,19 @@ while server_challenge[k] != "=":
     k-=1
 rounds=int(server_challenge[s_rounds_start:])
 
+r_value = ""
+k = 0
+while server_challenge[k] != ",":
+    r_value+=server_challenge[k]
+    k+=1;
+
 progress_bar = tqdm(w)
 #start the attack
 for word in progress_bar:
     try:
         password = word.decode("utf-8")
         password = password.replace("\n","")
-        res = xmpp(username, password, client_nonce, initial_message, server_challenge, salt, rounds)
+        res = xmpp(username, password, client_nonce, server_challenge, r_value, salt, rounds)
         if res == client_final_message:
             rprint("[green bold] FOUND PASSWORD :[/green bold]",password)
             progress_bar.close()
