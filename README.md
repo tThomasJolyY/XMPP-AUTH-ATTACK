@@ -1,6 +1,6 @@
 # XMPP-AUTH-ATTACK
 
-![](newscreen.png)
+![](screen.png)
 
 This is a simple tool to try and break XMPP authentification with a dictionnary attack.
 
